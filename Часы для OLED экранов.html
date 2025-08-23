@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Системные часы с плавной секундной стрелкой</title>
+    <style>
+        /* ============================================================================
+           ОСНОВНЫЕ ПЕРЕМЕННЫЕ СТИЛЕЙ
+           ============================================================================ */
+        :root {
+            /* Цветовая схема */
+            --bg-color: #000000;
+            --text-color: #ffffff;
+            --header-bg: rgba(0, 0, 0, 0.9);
+            --button-bg: rgba(30, 30, 40, 0.8);
+            --button-border: rgba(100, 150, 255, 0.5);
+            --button-hover-bg: rgba(60, 100, 200, 0.8);
+            --analog-clock-bg: radial-gradient(circle, rgba(20, 20, 30, 0.9) 0%, rgba(10, 10, 20, 0.95) 100%);
+            --system-info-bg: rgba(0, 0, 0, 0.85);
+            --system-info-border: rgba(255, 255, 255, 0.1);
+            /* Размеры и отступы */
+            --header-padding: 15px;
+            --container-padding: 20px;
+            --button-padding: 12px 24px;
+            --border-radius: 8px;
+            /* Анимации */
+            --transition-speed: 0.3s;
+            --transition-easing: ease-out;
+        }
+        /* ============================================================================
+           ОСНОВНЫЕ СТИЛИ СТРАНИЦЫ
+           ============================================================================ */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+            cursor: default; /* Установим по умолчанию */
+        }
+
+        /* Скрытие курсора при бездействии */
+        body.hide-cursor {
+            cursor: none;
+        }
+
+        /* ============================================================================
+           СТИЛИ ЗАГОЛОВКА
+           ============================================================================ */
+        header {
+            position: fixed;
+            top: 0;
+            right: 0;
+            background-color: var(--header-bg);
+            color: #e0e0e0;
+            padding: var(--header-padding) var(--container-padding);
+            text-align: right;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            width: 100%;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        /* ============================================================================
+           СТИЛИ КОНТЕЙНЕРА ЧАСОВ
+           ============================================================================ */
+        #clockContainer {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all var(--transition-speed) var(--transition-easing);
+            width: auto;
+            height: auto;
+            user-select: none;
+            z-index: 100;
+            cursor: move;
+        }
+        /* ============================================================================
+           СТИЛИ ЦИФРОВЫХ ЧАСОВ
+           ============================================================================ */
+        .digital-clock {
+            font-size: 6rem;
+            margin-bottom: 10px;
+            text-shadow: 0 0 30px rgba(226, 246, 255, 0.7);
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1;
+            cursor: move;
+        }
+        /* ============================================================================
+           СТИЛИ ИНФОРМАЦИИ О ДАТЕ
+           ============================================================================ */
+        .date-info {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1;
+            cursor: move;
+        }
+        /* ============================================================================
+           СТИЛИ СИСТЕМНОЙ ИНФОРМАЦИИ
+           ============================================================================ */
+        .system-info {
+            font-size: 0.9rem;
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+            font-family: 'Courier New', Courier, monospace;
+            line-height: 1.3;
+            text-align: left;
+            background-color: var(--system-info-bg);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid var(--system-info-border);
+            max-width: 600px;
+            margin-top: 20px;
+            backdrop-filter: blur(5px);
+            box-shadow: 0 0 20px rgba(0, 100, 255, 0.2);
+        }
+        /* ============================================================================
+           СТИЛИ КНОПОК УПРАВЛЕНИЯ
+           ============================================================================ */
+        .control-button {
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--button-border);
+            padding: var(--button-padding);
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: var(--border-radius);
+            transition: all var(--transition-speed) ease;
+            backdrop-filter: blur(5px);
+            min-width: 120px;
+        }
+        .control-button:hover {
+            background-color: var(--button-hover-bg);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 100, 255, 0.3);
+        }
+        /* ============================================================================
+           СТИЛИ АНАЛОГОВЫХ ЧАСОВ
+           ============================================================================ */
+        .analog-clock {
+            width: 300px;
+            height: 300px;
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            position: relative;
+            background: var(--analog-clock-bg);
+            box-shadow: 0 0 40px rgba(100, 180, 255, 0.4),
+                        inset 0 0 20px rgba(0, 0, 0, 0.8);
+            display: none;
+            overflow: hidden;
+            transition: all var(--transition-speed) var(--transition-easing);
+        }
+        .analog-clock.show {
+            display: block;
+        }
+        .analog-clock .dial {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+        }
+        .analog-clock .marker {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.9);
+            transform-origin: center;
+            left: 50%;
+            top: 50%;
+        }
+        .analog-clock .hour-marker {
+            width: 4px;
+            height: 20px;
+            margin-left: -2px;
+            margin-top: -10px;
+        }
+        .analog-clock .minute-marker {
+            width: 2px;
+            height: 10px;
+            margin-left: -1px;
+            margin-top: -5px;
+            background: rgba(255, 255, 255, 0.6);
+        }
+        .analog-clock .numbers {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        }
+        .analog-clock .number {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            margin-left: -15px;
+            margin-top: -15px;
+        }
+        .analog-clock .hand {
+            position: absolute;
+            transform-origin: bottom center;
+            left: 50%;
+            bottom: 50%;
+            border-radius: 2px;
+            transform: translateX(-50%) rotate(0deg);
+        }
+        .analog-clock .hour-hand {
+            width: 8px;
+            height: 70px;
+            background: linear-gradient(to top, #ffffff, #cccccc);
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        .analog-clock .minute-hand {
+            width: 6px;
+            height: 100px;
+            background: linear-gradient(to top, #ffffff, #dddddd);
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        .analog-clock .second-hand {
+            width: 2px;
+            height: 120px;
+            background: linear-gradient(to top, #ff4444, #ff8888);
+            box-shadow: 0 0 8px rgba(255, 100, 100, 0.8);
+        }
+        .analog-clock .center-cap {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: #ff4444;
+            border: 2px solid white;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(255, 100, 100, 0.8);
+            z-index: 100;
+        }
+        /* ============================================================================
+           СТИЛИ ПОЛНОЭКРАННОГО РЕЖИМА
+           ============================================================================ */
+        :-webkit-full-screen { width: 100%; height: 100%; }
+        :-moz-full-screen { width: 100%; height: 100%; }
+        :-ms-fullscreen { width: 100%; height: 100%; }
+        :fullscreen { width: 100%; height: 100%; }
+        /* ============================================================================
+           АДАПТИВНЫЕ СТИЛИ ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ
+           ============================================================================ */
+        @media screen and (max-width: 768px) {
+            :root {
+                --header-padding: 10px;
+                --container-padding: 10px;
+                --button-padding: 8px 16px;
+                --button-font-size: 12px;
+            }
+            header {
+                padding: var(--header-padding) var(--container-padding);
+            }
+            .digital-clock { 
+                font-size: 4rem; 
+            }
+            .date-info { 
+                font-size: 1rem; 
+            }
+            .system-info { 
+                font-size: 0.7rem; 
+                max-width: 300px; 
+                padding: 10px; 
+            }
+            .control-button { 
+                padding: var(--button-padding); 
+                font-size: var(--button-font-size); 
+                min-width: 90px;
+            }
+            .analog-clock { 
+                width: 200px; 
+                height: 200px; 
+            }
+            .analog-clock .hour-hand { 
+                height: 50px; 
+                width: 6px; 
+            }
+            .analog-clock .minute-hand { 
+                height: 70px; 
+                width: 5px; 
+            }
+            .analog-clock .second-hand { 
+                height: 85px; 
+            }
+            .analog-clock .numbers { 
+                font-size: 16px; 
+            }
+            .analog-clock .number { 
+                width: 20px; 
+                height: 20px; 
+                line-height: 20px; 
+                margin-left: -10px; 
+                margin-top: -10px; 
+            }
+        }
+        @media screen and (max-width: 480px) {
+            :root {
+                --button-padding: 6px 12px;
+                --button-font-size: 10px;
+            }
+            .digital-clock { 
+                font-size: 3rem; 
+            }
+            .date-info { 
+                font-size: 0.8rem; 
+            }
+            .system-info { 
+                font-size: 0.6rem; 
+                max-width: 250px; 
+            }
+            .control-button { 
+                padding: var(--button-padding); 
+                font-size: var(--button-font-size); 
+                min-width: 80px;
+            }
+            .analog-clock { 
+                width: 150px; 
+                height: 150px; 
+            }
+            .analog-clock .hour-hand { 
+                height: 40px; 
+                width: 5px; 
+            }
+            .analog-clock .minute-hand { 
+                height: 55px; 
+                width: 4px; 
+            }
+            .analog-clock .second-hand { 
+                height: 65px; 
+            }
+            .analog-clock .numbers { 
+                font-size: 12px; 
+            }
+            .analog-clock .number { 
+                width: 15px; 
+                height: 15px; 
+                line-height: 15px; 
+                margin-left: -7.5px; 
+                margin-top: -7.5px; 
+            }
+        }
+        /* ============================================================================
+           СТИЛИ ДЛЯ СЕНСОРНЫХ УСТРОЙСТВ
+           ============================================================================ */
+        @media (hover: none) and (pointer: coarse) {
+            .control-button {
+                padding: 15px 20px;
+                font-size: 18px;
+                min-width: 140px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="control-button" id="fullscreenButton">Полный экран</button>
+        <button class="control-button" id="infoButton">Инфо</button>
+        <button class="control-button" id="settingsButton">Настройки</button>
+    </header>
+    <div id="clockContainer">
+        <div class="digital-clock" id="clock"></div>
+        <div class="analog-clock" id="analogClock">
+            <div class="dial" id="clockDial"></div>
+            <div class="numbers" id="clockNumbers"></div>
+            <div class="hand hour-hand" id="hourHand"></div>
+            <div class="hand minute-hand" id="minuteHand"></div>
+            <div class="hand second-hand" id="secondHand"></div>
+            <div class="center-cap"></div>
+        </div>
+        <div class="date-info" id="dateInfo"></div>
+        <div class="system-info" id="systemInfo" style="display: none;"></div>
+    </div>
+
+    <!-- Модальное окно настроек -->
+    <div id="settingsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: #1a1a2e; color: white; padding: 30px; border-radius: 15px; max-width: 800px; width: 90%; max-height: 90vh; overflow-y: auto;">
+            <h2 style="margin-top: 0; text-align: center;">Настройки часов</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div>
+                    <h3>Основные настройки</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Формат времени: </label>
+                        <select id="timeFormatSetting">
+                            <option value="24">24 часа</option>
+                            <option value="12">12 часов</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Режим отображения: </label>
+                        <select id="displayModeSetting">
+                            <option value="digital">Цифровой</option>
+                            <option value="analog">Аналоговый</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Язык: </label>
+                        <select id="languageSetting">
+                            <option value="ru-RU">Русский</option>
+                            <option value="en-US">English</option>
+                            <option value="de-DE">Deutsch</option>
+                            <option value="fr-FR">Français</option>
+                            <option value="es-ES">Español</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <h3>Перемещение</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Защита OLED (автоматическое перемещение): </label>
+                        <input type="checkbox" id="oledProtectionSetting" checked>
+                        <div style="font-size: 0.8em; color: #aaa; margin-top: 5px;">
+                            Автоматически перемещает часы для защиты OLED экрана от выгорания
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Интервал перемещения (сек): </label>
+                        <input type="number" id="moveIntervalSetting" min="1" max="60" value="30">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Скорость перемещения: </label>
+                        <input type="range" id="moveSpeedSetting" min="0.01" max="1" step="0.01" value="0.1">
+                    </div>
+                </div>
+                <div>
+                    <h3>Цифровые часы</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Размер шрифта (rem): </label>
+                        <input type="number" id="digitalFontSizeSetting" min="1" max="20" step="0.5" value="6">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет текста: </label>
+                        <input type="color" id="digitalColorSetting" value="#ffffff">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет тени: </label>
+                        <input type="color" id="digitalShadowColorSetting" value="#e2f6ff">
+                    </div>
+                </div>
+                <div>
+                    <h3>Аналоговые часы</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Размер (px): </label>
+                        <input type="number" id="analogSizeSetting" min="100" max="500" value="300">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет фона: </label>
+                        <input type="color" id="analogBgColorSetting" value="#14141e">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет часовой стрелки: </label>
+                        <input type="color" id="hourHandColorSetting" value="#ffffff">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет минутной стрелки: </label>
+                        <input type="color" id="minuteHandColorSetting" value="#dddddd">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет секундной стрелки: </label>
+                        <input type="color" id="secondHandColorSetting" value="#ff4444">
+                    </div>
+                </div>
+                <div>
+                    <h3>Дата</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Размер шрифта (rem): </label>
+                        <input type="number" id="dateFontSizeSetting" min="0.5" max="5" step="0.1" value="1.5">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет текста: </label>
+                        <input type="color" id="dateColorSetting" value="#ffffff">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Цвет тени: </label>
+                        <input type="color" id="dateShadowColorSetting" value="#ffffff">
+                    </div>
+                </div>
+                <div>
+                    <h3>Система</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label>Показывать системную информацию: </label>
+                        <input type="checkbox" id="showSystemInfoSetting">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label>Интервал обновления FPS (мс): </label>
+                        <input type="number" id="fpsUpdateIntervalSetting" min="100" max="5000" value="1000">
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px;">
+                <button class="control-button" id="resetSettingsButton">Сбросить настройки</button>
+                <div>
+                    <button class="control-button" id="closeSettingsButton">Закрыть</button>
+                    <button class="control-button" id="saveSettingsButton">Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // МОДУЛЬ НАСТРОЕК
+        // ============================================================================
+        const CLOCK_SETTINGS = {
+            MOVE_INTERVAL: 30000,             // 30 секунд
+            MOVE_SPEED: 0.1,
+            MOVE_PADDING: 30,
+            TOP_PADDING: 30
+        };
+        const DISPLAY_SETTINGS = {
+            IS_24_HOUR_FORMAT: true,
+            IS_ANALOG_MODE: false,
+            SHOW_SYSTEM_INFO: false,
+            LANGUAGE: 'ru-RU'
+        };
+        const PERFORMANCE_SETTINGS = {
+            FPS_UPDATE_INTERVAL: 1000,
+            FPS_BUFFER_SIZE: 10
+        };
+        const STYLE_SETTINGS = {
+            DIGITAL_FONT_SIZE: 6,
+            DIGITAL_TEXT_COLOR: '#ffffff',
+            DIGITAL_SHADOW_COLOR: '#e2f6ff',
+            ANALOG_SIZE: 300,
+            ANALOG_BG_COLOR: '#14141e',
+            HOUR_HAND_COLOR: '#ffffff',
+            MINUTE_HAND_COLOR: '#dddddd',
+            SECOND_HAND_COLOR: '#ff4444',
+            DATE_FONT_SIZE: 1.5,
+            DATE_TEXT_COLOR: '#ffffff',
+            DATE_SHADOW_COLOR: '#ffffff'
+        };
+        const BEHAVIOR_SETTINGS = {
+            OLED_PROTECTION_ENABLED: true   // ✅ Защита OLED включена по умолчанию
+        };
+
+        // ============================================================================
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        // ============================================================================
+        let buttonTimeout;
+        let moveInterval;
+        let lastMoveTime = 0;
+        let smoothSecondInterval;
+        let is24HourFormat = DISPLAY_SETTINGS.IS_24_HOUR_FORMAT;
+        let isAnalogMode = DISPLAY_SETTINGS.IS_ANALOG_MODE;
+        let showSystemInfo = DISPLAY_SETTINGS.SHOW_SYSTEM_INFO;
+        let currentLanguage = DISPLAY_SETTINGS.LANGUAGE;
+        let fps = 0;
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let fpsArray = [];
+        let fpsIndex = 0;
+        let isDragging = false;
+        let offsetX, offsetY;
+        let currentX = 0;
+        let currentY = 0;
+        let targetX = 0;
+        let targetY = 0;
+        let isMoving = false;
+
+        // Таймер для скрытия курсора
+        let cursorTimeout;
+
+        // Флаг: открыты ли настройки
+        let settingsOpen = false;
+
+        // ============================================================================
+        // КЭШИРОВАНИЕ DOM
+        // ============================================================================
+        const domElements = {
+            clock: null,
+            dateInfo: null,
+            analogClock: null,
+            clockDial: null,
+            clockNumbers: null,
+            hourHand: null,
+            minuteHand: null,
+            secondHand: null,
+            systemInfo: null,
+            clockContainer: null,
+            header: null,
+            fullscreenButton: null,
+            infoButton: null,
+            settingsButton: null,
+            settingsModal: null,
+            closeSettingsButton: null
+        };
+
+        // ============================================================================
+        // ОСНОВНАЯ ЛОГИКА
+        // ============================================================================
+        function updateClock() {
+            const currentTime = new Date();
+            const userLang = currentLanguage || navigator.language || 'ru-RU';
+            let timeOptions = { hour12: !is24HourFormat, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+            domElements.clock.textContent = currentTime.toLocaleTimeString(userLang, timeOptions);
+            let dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            domElements.dateInfo.textContent = currentTime.toLocaleDateString(userLang, dateOptions);
+
+            if (isAnalogMode) updateAnalogClock(currentTime);
+            if (showSystemInfo) updateSystemInfo();
+            checkAndMoveClock();
+        }
+
+        function updateAnalogClock(time) {
+            const hours = time.getHours();
+            const minutes = time.getMinutes();
+            const seconds = time.getSeconds();
+            const milliseconds = time.getMilliseconds();
+            const hourAngle = (hours % 12) * 30 + minutes * 0.5;
+            const minuteAngle = minutes * 6 + seconds * 0.1;
+            const secondAngle = seconds * 6 + milliseconds * 0.006;
+            domElements.hourHand.style.transform = `translateX(-50%) rotate(${hourAngle}deg)`;
+            domElements.minuteHand.style.transform = `translateX(-50%) rotate(${minuteAngle}deg)`;
+            domElements.secondHand.style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+        }
+
+        function startSmoothSecondHand() {
+            if (smoothSecondInterval) cancelAnimationFrame(smoothSecondInterval);
+            const updateSecondHand = () => {
+                if (isAnalogMode) {
+                    const now = new Date();
+                    const secondAngle = now.getSeconds() * 6 + now.getMilliseconds() * 0.006;
+                    domElements.secondHand.style.transform = `translateX(-50%) rotate(${secondAngle}deg)`;
+                }
+                smoothSecondInterval = requestAnimationFrame(updateSecondHand);
+            };
+            updateSecondHand();
+        }
+
+        function stopSmoothSecondHand() {
+            if (smoothSecondInterval) {
+                cancelAnimationFrame(smoothSecondInterval);
+                smoothSecondInterval = null;
+            }
+        }
+
+        function updateSystemInfo() {
+            updateFPS();
+            const currentTime = new Date();
+            const uptime = Math.floor((currentTime - performance.timing.navigationStart) / 1000);
+            const uptimeMinutes = Math.floor(uptime / 60);
+            const uptimeSeconds = uptime % 60;
+            let batteryInfo = "";
+            if (navigator.getBattery) {
+                navigator.getBattery().then(battery => {
+                    const level = Math.round(battery.level * 100);
+                    const charging = battery.charging ? "Заряжается" : "Не заряжается";
+                    const chargingTime = battery.chargingTime === Infinity ? "Не определено" : Math.round(battery.chargingTime / 60) + " мин";
+                    const dischargingTime = battery.dischargingTime === Infinity ? "Не определено" : Math.round(battery.dischargingTime / 60) + " мин";
+                    batteryInfo = `Батарея: ${level}% (${charging})<br>Время зарядки: ${chargingTime}<br>Время разрядки: ${dischargingTime}<br>`;
+                    if (domElements.systemInfo.innerHTML.includes("Батарея:")) {
+                        domElements.systemInfo.innerHTML = domElements.systemInfo.innerHTML.replace(/Батарея:.*?(?=<br>|$)/, batteryInfo.split('<br>')[0]);
+                    } else {
+                        domElements.systemInfo.innerHTML = domElements.systemInfo.innerHTML.replace(/<b>СИСТЕМНАЯ ИНФОРМАЦИЯ<\/b><br>/, `<b>СИСТЕМНАЯ ИНФОРМАЦИЯ</b><br>${batteryInfo}`);
+                    }
+                }).catch(() => {
+                    batteryInfo = "Батарея: Недоступно<br>";
+                    if (domElements.systemInfo.innerHTML.includes("Батарея:")) {
+                        domElements.systemInfo.innerHTML = domElements.systemInfo.innerHTML.replace(/Батарея:.*?(?=<br>|$)/, batteryInfo.split('<br>')[0]);
+                    } else {
+                        domElements.systemInfo.innerHTML = domElements.systemInfo.innerHTML.replace(/<b>СИСТЕМНАЯ ИНФОРМАЦИЯ<\/b><br>/, `<b>СИСТЕМНАЯ ИНФОРМАЦИЯ</b><br>${batteryInfo}`);
+                    }
+                });
+            }
+            let memoryInfo = "";
+            if (performance.memory) {
+                const usedMB = Math.round(performance.memory.usedJSHeapSize / 1048576 * 100) / 100;
+                const totalMB = Math.round(performance.memory.totalJSHeapSize / 1048576 * 100) / 100;
+                memoryInfo = `Память JS: ${usedMB}/${totalMB} MB<br>`;
+            }
+            const online = navigator.onLine;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            const infoText = `
+                <b>СИСТЕМНАЯ ИНФОРМАЦИЯ</b><br>
+                Сетевой статус: ${online ? '✓ Онлайн' : '✗ Офлайн'}<br>
+                ${batteryInfo}
+                FPS: ${fps}<br>
+                ${memoryInfo}
+                Аптайм страницы: ${uptimeMinutes}м ${uptimeSeconds}с<br>
+                Viewport: ${windowWidth}×${windowHeight}<br>
+                Device Pixel Ratio: ${devicePixelRatio}<br>
+                Текущее время: ${currentTime.toISOString()}<br>
+            `;
+            domElements.systemInfo.innerHTML = infoText;
+        }
+
+        function updateFPS() {
+            const now = performance.now();
+            if (lastFpsUpdate === 0) {
+                lastFpsUpdate = now;
+                return;
+            }
+            frameCount++;
+            if (now - lastFpsUpdate >= PERFORMANCE_SETTINGS.FPS_UPDATE_INTERVAL) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFpsUpdate = now;
+                fpsArray[fpsIndex] = fps;
+                fpsIndex = (fpsIndex + 1) % PERFORMANCE_SETTINGS.FPS_BUFFER_SIZE;
+            }
+        }
+
+        // ============================================================================
+        // УПРАВЛЕНИЕ
+        // ============================================================================
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(err => {
+                    console.log(`Ошибка: ${err.message}`);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function toggleSystemInfo() {
+            showSystemInfo = !showSystemInfo;
+            domElements.systemInfo.style.display = showSystemInfo ? "block" : "none";
+            if (showSystemInfo) updateSystemInfo();
+        }
+
+        // ============================================================================
+        // ПЕРЕМЕЩЕНИЕ
+        // ============================================================================
+        function hideButton() {
+            const buttons = document.querySelectorAll('.control-button');
+            buttons.forEach(button => {
+                button.style.opacity = 0;
+                button.style.transform = 'translateY(-10px)';
+            });
+        }
+
+        function showButtons() {
+            const buttons = document.querySelectorAll('.control-button');
+            buttons.forEach(button => {
+                button.style.opacity = 1;
+                button.style.transform = 'translateY(0)';
+            });
+            // Показать курсор
+            document.body.classList.remove('hide-cursor');
+            clearTimeout(cursorTimeout);
+            cursorTimeout = setTimeout(() => document.body.classList.add('hide-cursor'), 3000);
+        }
+
+        function moveClock() {
+            if (!BEHAVIOR_SETTINGS.OLED_PROTECTION_ENABLED) return;
+            const now = Date.now();
+            if (now - lastMoveTime < CLOCK_SETTINGS.MOVE_INTERVAL) return;
+            lastMoveTime = now;
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const headerHeight = domElements.header.offsetHeight;
+            const containerRect = domElements.clockContainer.getBoundingClientRect();
+            const maxX = screenWidth - containerRect.width - CLOCK_SETTINGS.MOVE_PADDING * 2;
+            const maxY = screenHeight - containerRect.height - CLOCK_SETTINGS.MOVE_PADDING * 2 - headerHeight;
+            targetX = CLOCK_SETTINGS.MOVE_PADDING + Math.floor(Math.random() * maxX);
+            targetY = headerHeight + CLOCK_SETTINGS.MOVE_PADDING + Math.floor(Math.random() * maxY);
+            currentX = domElements.clockContainer.getBoundingClientRect().left;
+            currentY = domElements.clockContainer.getBoundingClientRect().top;
+            if (!isMoving) {
+                isMoving = true;
+                moveClockSmoothly();
+            }
+        }
+
+        function moveClockSmoothly() {
+            if (!isMoving) return;
+            const dx = targetX - currentX;
+            const dy = targetY - currentY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < 1) {
+                domElements.clockContainer.style.left = targetX + 'px';
+                domElements.clockContainer.style.top = targetY + 'px';
+                isMoving = false;
+                return;
+            }
+            const step = CLOCK_SETTINGS.MOVE_SPEED * 16;
+            const moveX = (dx / distance) * step;
+            const moveY = (dy / distance) * step;
+            currentX += moveX;
+            currentY += moveY;
+            domElements.clockContainer.style.left = currentX + 'px';
+            domElements.clockContainer.style.top = currentY + 'px';
+            requestAnimationFrame(moveClockSmoothly);
+        }
+
+        function checkAndMoveClock() {
+            moveClock();
+        }
+
+        function startMovingClock() {
+            moveInterval = setInterval(checkAndMoveClock, 1000);
+        }
+
+        // ============================================================================
+        // ПЕРЕТАСКИВАНИЕ
+        // ============================================================================
+        function dragStart(e) {
+            if (!settingsOpen && (e.target === domElements.clock || e.target === domElements.dateInfo || e.target.closest('.analog-clock'))) {
+                isDragging = true;
+                isMoving = false;
+                e.preventDefault();
+                const rect = domElements.clockContainer.getBoundingClientRect();
+                const clientX = e.type === "touchstart" ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === "touchstart" ? e.touches[0].clientY : e.clientY;
+                offsetX = clientX - rect.left;
+                offsetY = clientY - rect.top;
+                domElements.clockContainer.style.transition = 'none';
+                domElements.clockContainer.style.boxShadow = '0 0 30px rgba(100, 200, 255, 0.5)';
+            }
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                const clientX = e.type === "touchmove" ? e.touches[0].clientX : e.clientX;
+                const clientY = e.type === "touchmove" ? e.touches[0].clientY : e.clientY;
+                const newX = clientX - offsetX;
+                const newY = clientY - offsetY;
+                const rect = domElements.clockContainer.getBoundingClientRect();
+                const boundedX = Math.max(CLOCK_SETTINGS.MOVE_PADDING, Math.min(newX, window.innerWidth - rect.width - CLOCK_SETTINGS.MOVE_PADDING));
+                const boundedY = Math.max(domElements.header.offsetHeight + CLOCK_SETTINGS.MOVE_PADDING, Math.min(newY, window.innerHeight - rect.height - CLOCK_SETTINGS.MOVE_PADDING));
+                domElements.clockContainer.style.left = boundedX + 'px';
+                domElements.clockContainer.style.top = boundedY + 'px';
+                currentX = boundedX;
+                currentY = boundedY;
+            }
+        }
+
+        function dragEnd() {
+            if (isDragging) {
+                isDragging = false;
+                domElements.clockContainer.style.transition = 'all 0.3s ease-out';
+                domElements.clockContainer.style.boxShadow = 'none';
+                lastMoveTime = Date.now();
+            }
+        }
+
+        function moveToClickPosition(e) {
+            // ✅ Блокируем клики, если настройки открыты
+            if (settingsOpen) return;
+            if (e.target.closest('header') || e.target === domElements.clockContainer || e.target.closest('#clockContainer')) return;
+            const rect = domElements.clockContainer.getBoundingClientRect();
+            const newX = e.clientX - (rect.width / 2);
+            const newY = e.clientY - (rect.height / 2);
+            const boundedX = Math.max(CLOCK_SETTINGS.MOVE_PADDING, Math.min(newX, window.innerWidth - rect.width - CLOCK_SETTINGS.MOVE_PADDING));
+            const boundedY = Math.max(domElements.header.offsetHeight + CLOCK_SETTINGS.MOVE_PADDING, Math.min(newY, window.innerHeight - rect.height - CLOCK_SETTINGS.MOVE_PADDING));
+            isMoving = false;
+            domElements.clockContainer.style.transition = 'all 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            domElements.clockContainer.style.left = boundedX + 'px';
+            domElements.clockContainer.style.top = boundedY + 'px';
+            currentX = boundedX;
+            currentY = boundedY;
+            lastMoveTime = Date.now();
+            setTimeout(() => {
+                domElements.clockContainer.style.transition = 'all 0.3s ease-out';
+            }, 500);
+        }
+
+        // ============================================================================
+        // НАСТРОЙКИ
+        // ============================================================================
+        function openSettings() {
+            settingsOpen = true;
+            domElements.settingsModal.style.display = 'flex';
+            loadSettingsToForm();
+        }
+
+        function closeSettings() {
+            settingsOpen = false;
+            domElements.settingsModal.style.display = 'none';
+        }
+
+        function loadSettingsToForm() {
+            document.getElementById('timeFormatSetting').value = is24HourFormat ? '24' : '12';
+            document.getElementById('displayModeSetting').value = isAnalogMode ? 'analog' : 'digital';
+            document.getElementById('languageSetting').value = currentLanguage;
+            document.getElementById('oledProtectionSetting').checked = BEHAVIOR_SETTINGS.OLED_PROTECTION_ENABLED;
+            document.getElementById('moveIntervalSetting').value = CLOCK_SETTINGS.MOVE_INTERVAL / 1000;
+            document.getElementById('moveSpeedSetting').value = CLOCK_SETTINGS.MOVE_SPEED;
+            document.getElementById('digitalFontSizeSetting').value = STYLE_SETTINGS.DIGITAL_FONT_SIZE;
+            document.getElementById('digitalColorSetting').value = STYLE_SETTINGS.DIGITAL_TEXT_COLOR;
+            document.getElementById('digitalShadowColorSetting').value = STYLE_SETTINGS.DIGITAL_SHADOW_COLOR;
+            document.getElementById('analogSizeSetting').value = STYLE_SETTINGS.ANALOG_SIZE;
+            document.getElementById('analogBgColorSetting').value = STYLE_SETTINGS.ANALOG_BG_COLOR;
+            document.getElementById('hourHandColorSetting').value = STYLE_SETTINGS.HOUR_HAND_COLOR;
+            document.getElementById('minuteHandColorSetting').value = STYLE_SETTINGS.MINUTE_HAND_COLOR;
+            document.getElementById('secondHandColorSetting').value = STYLE_SETTINGS.SECOND_HAND_COLOR;
+            document.getElementById('dateFontSizeSetting').value = STYLE_SETTINGS.DATE_FONT_SIZE;
+            document.getElementById('dateColorSetting').value = STYLE_SETTINGS.DATE_TEXT_COLOR;
+            document.getElementById('dateShadowColorSetting').value = STYLE_SETTINGS.DATE_SHADOW_COLOR;
+            document.getElementById('showSystemInfoSetting').checked = showSystemInfo;
+            document.getElementById('fpsUpdateIntervalSetting').value = PERFORMANCE_SETTINGS.FPS_UPDATE_INTERVAL;
+        }
+
+        function saveSettings() {
+            is24HourFormat = document.getElementById('timeFormatSetting').value === '24';
+            isAnalogMode = document.getElementById('displayModeSetting').value === 'analog';
+            currentLanguage = document.getElementById('languageSetting').value;
+            BEHAVIOR_SETTINGS.OLED_PROTECTION_ENABLED = document.getElementById('oledProtectionSetting').checked;
+            CLOCK_SETTINGS.MOVE_INTERVAL = parseInt(document.getElementById('moveIntervalSetting').value) * 1000;
+            CLOCK_SETTINGS.MOVE_SPEED = parseFloat(document.getElementById('moveSpeedSetting').value);
+            STYLE_SETTINGS.DIGITAL_FONT_SIZE = parseFloat(document.getElementById('digitalFontSizeSetting').value);
+            STYLE_SETTINGS.DIGITAL_TEXT_COLOR = document.getElementById('digitalColorSetting').value;
+            STYLE_SETTINGS.DIGITAL_SHADOW_COLOR = document.getElementById('digitalShadowColorSetting').value;
+            STYLE_SETTINGS.ANALOG_SIZE = parseInt(document.getElementById('analogSizeSetting').value);
+            STYLE_SETTINGS.ANALOG_BG_COLOR = document.getElementById('analogBgColorSetting').value;
+            STYLE_SETTINGS.HOUR_HAND_COLOR = document.getElementById('hourHandColorSetting').value;
+            STYLE_SETTINGS.MINUTE_HAND_COLOR = document.getElementById('minuteHandColorSetting').value;
+            STYLE_SETTINGS.SECOND_HAND_COLOR = document.getElementById('secondHandColorSetting').value;
+            STYLE_SETTINGS.DATE_FONT_SIZE = parseFloat(document.getElementById('dateFontSizeSetting').value);
+            STYLE_SETTINGS.DATE_TEXT_COLOR = document.getElementById('dateColorSetting').value;
+            STYLE_SETTINGS.DATE_SHADOW_COLOR = document.getElementById('dateShadowColorSetting').value;
+            showSystemInfo = document.getElementById('showSystemInfoSetting').checked;
+            PERFORMANCE_SETTINGS.FPS_UPDATE_INTERVAL = parseInt(document.getElementById('fpsUpdateIntervalSetting').value);
+            applySettings();
+            closeSettings();
+            updateClock();
+        }
+
+        function resetSettings() {
+            if (confirm("Сбросить все настройки?")) {
+                Object.assign(CLOCK_SETTINGS, { MOVE_INTERVAL: 30000, MOVE_SPEED: 0.1, MOVE_PADDING: 30, TOP_PADDING: 30 });
+                Object.assign(DISPLAY_SETTINGS, { IS_24_HOUR_FORMAT: true, IS_ANALOG_MODE: false, SHOW_SYSTEM_INFO: false, LANGUAGE: 'ru-RU' });
+                Object.assign(PERFORMANCE_SETTINGS, { FPS_UPDATE_INTERVAL: 1000, FPS_BUFFER_SIZE: 10 });
+                Object.assign(STYLE_SETTINGS, { DIGITAL_FONT_SIZE: 6, DIGITAL_TEXT_COLOR: '#ffffff', DIGITAL_SHADOW_COLOR: '#e2f6ff', ANALOG_SIZE: 300, ANALOG_BG_COLOR: '#14141e', HOUR_HAND_COLOR: '#ffffff', MINUTE_HAND_COLOR: '#dddddd', SECOND_HAND_COLOR: '#ff4444', DATE_FONT_SIZE: 1.5, DATE_TEXT_COLOR: '#ffffff', DATE_SHADOW_COLOR: '#ffffff' });
+                Object.assign(BEHAVIOR_SETTINGS, { OLED_PROTECTION_ENABLED: true });
+                is24HourFormat = DISPLAY_SETTINGS.IS_24_HOUR_FORMAT;
+                isAnalogMode = DISPLAY_SETTINGS.IS_ANALOG_MODE;
+                showSystemInfo = DISPLAY_SETTINGS.SHOW_SYSTEM_INFO;
+                currentLanguage = DISPLAY_SETTINGS.LANGUAGE;
+                applySettings();
+                loadSettingsToForm();
+                updateClock();
+            }
+        }
+
+        function applySettings() {
+            domElements.clock.style.fontSize = `${STYLE_SETTINGS.DIGITAL_FONT_SIZE}rem`;
+            domElements.clock.style.color = STYLE_SETTINGS.DIGITAL_TEXT_COLOR;
+            domElements.clock.style.textShadow = `0 0 30px ${STYLE_SETTINGS.DIGITAL_SHADOW_COLOR}`;
+            domElements.analogClock.style.width = `${STYLE_SETTINGS.ANALOG_SIZE}px`;
+            domElements.analogClock.style.height = `${STYLE_SETTINGS.ANALOG_SIZE}px`;
+            domElements.analogClock.style.background = `radial-gradient(circle, ${STYLE_SETTINGS.ANALOG_BG_COLOR} 0%, ${darkenColor(STYLE_SETTINGS.ANALOG_BG_COLOR, 20)} 100%)`;
+            domElements.hourHand.style.background = `linear-gradient(to top, ${STYLE_SETTINGS.HOUR_HAND_COLOR}, ${darkenColor(STYLE_SETTINGS.HOUR_HAND_COLOR, 20)})`;
+            domElements.minuteHand.style.background = `linear-gradient(to top, ${STYLE_SETTINGS.MINUTE_HAND_COLOR}, ${darkenColor(STYLE_SETTINGS.MINUTE_HAND_COLOR, 15)})`;
+            domElements.secondHand.style.background = `linear-gradient(to top, ${STYLE_SETTINGS.SECOND_HAND_COLOR}, ${lightenColor(STYLE_SETTINGS.SECOND_HAND_COLOR, 20)})`;
+            domElements.dateInfo.style.fontSize = `${STYLE_SETTINGS.DATE_FONT_SIZE}rem`;
+            domElements.dateInfo.style.color = STYLE_SETTINGS.DATE_TEXT_COLOR;
+            domElements.dateInfo.style.textShadow = `0 0 5px ${STYLE_SETTINGS.DATE_SHADOW_COLOR}`;
+            domElements.systemInfo.style.display = showSystemInfo ? "block" : "none";
+            if (isAnalogMode) {
+                domElements.clock.style.display = "none";
+                domElements.analogClock.classList.add("show");
+                domElements.dateInfo.style.marginTop = "20px";
+                createClockDial();
+                createClockNumbers();
+                startSmoothSecondHand();
+            } else {
+                domElements.clock.style.display = "block";
+                domElements.analogClock.classList.remove("show");
+                domElements.dateInfo.style.marginTop = "0";
+                stopSmoothSecondHand();
+            }
+        }
+
+        function darkenColor(color, percent) {
+            let R = parseInt(color.substring(1, 3), 16);
+            let G = parseInt(color.substring(3, 5), 16);
+            let B = parseInt(color.substring(5, 7), 16);
+            R = Math.floor(R * (100 - percent) / 100);
+            G = Math.floor(G * (100 - percent) / 100);
+            B = Math.floor(B * (100 - percent) / 100);
+            return `#${R.toString(16).padStart(2, '0')}${G.toString(16).padStart(2, '0')}${B.toString(16).padStart(2, '0')}`;
+        }
+
+        function lightenColor(color, percent) {
+            let R = parseInt(color.substring(1, 3), 16);
+            let G = parseInt(color.substring(3, 5), 16);
+            let B = parseInt(color.substring(5, 7), 16);
+            R = Math.floor(R + (255 - R) * percent / 100);
+            G = Math.floor(G + (255 - G) * percent / 100);
+            B = Math.floor(B + (255 - B) * percent / 100);
+            return `#${R.toString(16).padStart(2, '0')}${G.toString(16).padStart(2, '0')}${B.toString(16).padStart(2, '0')}`;
+        }
+
+        // ============================================================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ============================================================================
+        function init() {
+            cacheDomElements();
+            addEventListeners();
+            startClocks();
+            addDragEventListeners();
+            addResizeEventListeners();
+            startFpsMonitoring();
+            addButtonVisibilityListeners();
+            initializeClockPosition();
+            applySettings();
+
+            // Установка курсора при старте
+            document.body.classList.add('hide-cursor');
+        }
+
+        function cacheDomElements() {
+            domElements.clock = document.getElementById("clock");
+            domElements.dateInfo = document.getElementById("dateInfo");
+            domElements.analogClock = document.getElementById("analogClock");
+            domElements.clockDial = document.getElementById("clockDial");
+            domElements.clockNumbers = document.getElementById("clockNumbers");
+            domElements.hourHand = document.getElementById("hourHand");
+            domElements.minuteHand = document.getElementById("minuteHand");
+            domElements.secondHand = document.getElementById("secondHand");
+            domElements.systemInfo = document.getElementById("systemInfo");
+            domElements.clockContainer = document.getElementById("clockContainer");
+            domElements.header = document.querySelector('header');
+            domElements.fullscreenButton = document.getElementById("fullscreenButton");
+            domElements.infoButton = document.getElementById("infoButton");
+            domElements.settingsButton = document.getElementById("settingsButton");
+            domElements.settingsModal = document.getElementById("settingsModal");
+            domElements.closeSettingsButton = document.getElementById("closeSettingsButton");
+        }
+
+        function addEventListeners() {
+            domElements.fullscreenButton.addEventListener('click', toggleFullScreen);
+            domElements.infoButton.addEventListener('click', toggleSystemInfo);
+            domElements.settingsButton.addEventListener('click', openSettings);
+            document.getElementById('saveSettingsButton').addEventListener('click', saveSettings);
+            document.getElementById('closeSettingsButton').addEventListener('click', closeSettings); // ✅ Изменено с "cancel" на "close"
+            document.getElementById('resetSettingsButton').addEventListener('click', resetSettings);
+        }
+
+        function startClocks() {
+            setInterval(updateClock, 1000);
+            updateClock();
+            setTimeout(hideButton, 3000);
+            startMovingClock();
+        }
+
+        function addDragEventListeners() {
+            ['clock', 'dateInfo', 'analogClock'].forEach(id => {
+                const el = domElements[id];
+                if (el) {
+                    el.addEventListener("mousedown", dragStart);
+                    el.addEventListener("touchstart", dragStart);
+                }
+            });
+            document.addEventListener("mouseup", dragEnd);
+            document.addEventListener("mousemove", drag);
+            document.addEventListener("touchend", dragEnd);
+            document.addEventListener("touchmove", drag);
+            document.addEventListener("mousedown", moveToClickPosition);
+        }
+
+        function addResizeEventListeners() {
+            window.addEventListener('resize', () => {
+                adjustClockPosition();
+                if (isAnalogMode) {
+                    createClockDial();
+                    createClockNumbers();
+                }
+            });
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) adjustClockPosition();
+            });
+        }
+
+        function adjustClockPosition() {
+            const rect = domElements.clockContainer.getBoundingClientRect();
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const headerHeight = domElements.header.offsetHeight;
+            if (rect.right > screenWidth) domElements.clockContainer.style.left = (screenWidth - rect.width - CLOCK_SETTINGS.MOVE_PADDING) + 'px';
+            if (rect.bottom > screenHeight) domElements.clockContainer.style.top = (screenHeight - rect.height - CLOCK_SETTINGS.MOVE_PADDING) + 'px';
+            if (rect.left < CLOCK_SETTINGS.MOVE_PADDING) domElements.clockContainer.style.left = CLOCK_SETTINGS.MOVE_PADDING + 'px';
+            if (rect.top < headerHeight + CLOCK_SETTINGS.MOVE_PADDING) domElements.clockContainer.style.top = (headerHeight + CLOCK_SETTINGS.MOVE_PADDING) + 'px';
+        }
+
+        function startFpsMonitoring() {
+            function fpsCounter() {
+                updateFPS();
+                requestAnimationFrame(fpsCounter);
+            }
+            requestAnimationFrame(fpsCounter);
+        }
+
+        function addButtonVisibilityListeners() {
+            document.addEventListener("mousemove", () => {
+                showButtons();
+                clearTimeout(buttonTimeout);
+                buttonTimeout = setTimeout(hideButton, 3000);
+            });
+        }
+
+        function initializeClockPosition() {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const headerHeight = domElements.header.offsetHeight;
+            currentX = (screenWidth - domElements.clockContainer.offsetWidth) / 2;
+            currentY = (screenHeight - domElements.clockContainer.offsetHeight) / 2 + headerHeight;
+            domElements.clockContainer.style.left = currentX + 'px';
+            domElements.clockContainer.style.top = currentY + 'px';
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
